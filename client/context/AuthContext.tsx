@@ -26,13 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
     if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
+      setUser(JSON.parse(savedUser))
+      // Re-set cookie on every page load
+      document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
     }
-    setLoading(false);
-  }, []);
+    setLoading(false)
+  }, [])
 
   const login = async (email: string, password: string) => {
     const data = await authService.login({ email, password });
@@ -49,12 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    window.location.href = '/login';
-  };
-
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    // Clear the cookie too
+    document.cookie = 'token=; path=/; max-age=0'
+    setUser(null)
+    window.location.href = '/login'
+  }
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {!loading && children}

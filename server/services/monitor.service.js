@@ -12,7 +12,7 @@ const checkDevice = async (device, io) => {
   try {
     const result = await ping.promise.probe(device.ipAddress, {
       timeout: 5,
-      extra: ['-c', '1'],
+      extra: process.platform === 'win32' ? ['-n', '1'] : ['-c', '1'],
     });
 
     const isAlive = result.alive;
@@ -28,15 +28,22 @@ const checkDevice = async (device, io) => {
       status: newStatus,
     });
 
+    // Always emit latency data — every poll cycle
+    io.emit('latency_update', {
+      deviceId: device._id,
+      deviceName: device.name,
+      latencyMs: latencyMs || 0,
+      status: newStatus,
+      timestamp: new Date().toISOString(),
+    });
+
     // Only act if status changed
     if (newStatus !== prevStatus) {
-      // Update device in DB
       await Device.findByIdAndUpdate(device._id, {
         status: newStatus,
         lastSeen: isAlive ? new Date() : device.lastSeen,
       });
 
-      // Invalidate Redis cache
       await redis.del(CACHE_KEY);
 
       const alertType = isAlive ? 'device_up' : 'device_down';
@@ -45,7 +52,6 @@ const checkDevice = async (device, io) => {
         ? `${device.name} is back online`
         : `${device.name} is offline`;
 
-      // Save alert to DB
       const alert = await Alert.create({
         device: device._id,
         type: alertType,
@@ -53,7 +59,6 @@ const checkDevice = async (device, io) => {
         severity,
       });
 
-      // Emit real-time socket event
       io.emit('alert', {
         alertId: alert._id,
         deviceId: device._id,
@@ -71,7 +76,6 @@ const checkDevice = async (device, io) => {
         prevStatus,
       });
 
-      // Add email job to queue
       await alertQueue.add('send_alert_email', {
         deviceName: device.name,
         deviceIp: device.ipAddress,
@@ -82,7 +86,6 @@ const checkDevice = async (device, io) => {
 
       console.log(`Status change: ${device.name} ${prevStatus} → ${newStatus}`);
     } else if (isAlive) {
-      // Update lastSeen even if status didn't change
       await Device.findByIdAndUpdate(device._id, {
         lastSeen: new Date(),
       });
@@ -95,15 +98,11 @@ const checkDevice = async (device, io) => {
 const startMonitoring = (io) => {
   console.log('Network monitoring engine started');
 
-  // Run every 30 seconds
   cron.schedule('*/30 * * * * *', async () => {
     try {
       const devices = await Device.find();
       if (devices.length === 0) return;
-
       console.log(`Checking ${devices.length} device(s)...`);
-
-      // Check all devices in parallel
       await Promise.all(devices.map((device) => checkDevice(device, io)));
     } catch (error) {
       console.error(`Monitoring error: ${error.message}`);

@@ -1,4 +1,4 @@
-const Ticket = require('../models/Ticket');
+const Ticket = require("../models/Ticket");
 
 // GET /api/tickets
 const getAllTickets = async (req, res) => {
@@ -8,7 +8,7 @@ const getAllTickets = async (req, res) => {
     const filter = {};
 
     // Students only see their own tickets
-    if (req.user.role === 'student') {
+    if (req.user.role === "student") {
       filter.raisedBy = req.user._id;
     }
 
@@ -17,8 +17,8 @@ const getAllTickets = async (req, res) => {
     if (category) filter.category = category;
 
     const tickets = await Ticket.find(filter)
-      .populate('raisedBy', 'name email')
-      .populate('assignedTo', 'name email')
+      .populate("raisedBy", "name email")
+      .populate("assignedTo", "name email")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -49,7 +49,7 @@ const createTicket = async (req, res) => {
       raisedBy: req.user._id,
     });
 
-    res.status(201).json({ message: 'Ticket created successfully', ticket });
+    res.status(201).json({ message: "Ticket created successfully", ticket });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -59,30 +59,29 @@ const createTicket = async (req, res) => {
 const updateTicket = async (req, res) => {
   try {
     const { status, assignedTo, resolution } = req.body;
-
     const updateData = {};
     if (status) updateData.status = status;
     if (assignedTo) updateData.assignedTo = assignedTo;
     if (resolution) updateData.resolution = resolution;
+    if (status === "resolved") updateData.resolvedAt = new Date();
 
-    // Set resolvedAt when status is resolved
-    if (status === 'resolved') {
-      updateData.resolvedAt = new Date();
-    }
+    const ticket = await Ticket.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("raisedBy", "name email")
+      .populate("assignedTo", "name email");
 
-    const ticket = await Ticket.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    )
-      .populate('raisedBy', 'name email')
-      .populate('assignedTo', 'name email');
+    if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
-    if (!ticket) {
-      return res.status(404).json({ error: 'Ticket not found' });
-    }
+    // Emit real-time update to all clients
+    const { getIO } = require("../socket/socket");
+    try {
+      const io = getIO();
+      io.emit("ticket_updated", ticket);
+    } catch (e) {}
 
-    res.json({ message: 'Ticket updated successfully', ticket });
+    res.json({ message: "Ticket updated successfully", ticket });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -93,9 +92,9 @@ const deleteTicket = async (req, res) => {
   try {
     const ticket = await Ticket.findByIdAndDelete(req.params.id);
     if (!ticket) {
-      return res.status(404).json({ error: 'Ticket not found' });
+      return res.status(404).json({ error: "Ticket not found" });
     }
-    res.json({ message: 'Ticket deleted successfully' });
+    res.json({ message: "Ticket deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

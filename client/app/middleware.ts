@@ -1,25 +1,42 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-
-const publicRoutes = ['/login', '/register'];
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const { pathname } = request.nextUrl;
+  const token = request.cookies.get('token')?.value
+  const { pathname } = request.nextUrl
 
-  const isPublic = publicRoutes.includes(pathname);
-
-  if (!token && !isPublic) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Allow landing page always — no redirect
+  if (pathname === '/') {
+    return NextResponse.next()
   }
 
-  if (token && isPublic) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Allow login and register always
+  if (pathname === '/login' || pathname === '/register') {
+    if (token) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return NextResponse.next()
   }
 
-  return NextResponse.next();
+  // All other routes need token
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|public).*)'],
-};
+  matcher: [
+    '/',
+    '/login',
+    '/register',
+    '/dashboard/:path*',
+    '/devices/:path*',
+    '/alerts/:path*',
+    '/tickets/:path*',
+    '/topology/:path*',
+    '/analytics/:path*',
+    '/users/:path*',
+  ],
+}

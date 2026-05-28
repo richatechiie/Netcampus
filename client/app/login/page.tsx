@@ -14,20 +14,25 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setLoading(true)
     try {
-      await login(email, password);
-      // Save token to cookie for middleware
-      document.cookie = `token=${localStorage.getItem('token')}; path=/`;
-      router.push('/dashboard');
+      await login(email, password)
+
+      const token = localStorage.getItem('token')
+      if (token) {
+        // Set cookie with 7 day expiry
+        document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
+      }
+
+      router.push('/dashboard')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Login failed')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

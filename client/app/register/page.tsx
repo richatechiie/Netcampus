@@ -18,20 +18,24 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setLoading(true)
     try {
-      await register(form);
-      document.cookie = `token=${localStorage.getItem('token')}; path=/`;
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+      await register(form)
 
+      const token = localStorage.getItem('token')
+      if (token) {
+        document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`
+      }
+
+      router.push('/dashboard')
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">

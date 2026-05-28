@@ -6,6 +6,7 @@ import { DeviceTable } from '@/components/device-table'
 import deviceService from '@/lib/services/deviceService'
 import { useSocket } from '@/context/SocketContext'
 import { Filter, Download, Plus } from 'lucide-react'
+import { LatencyGraph } from '@/components/LatencyGraph'
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<any[]>([])
@@ -305,6 +306,9 @@ export default function DevicesPage() {
             </p>
           </div>
         </div>
+
+        {/* Live Latency Graph */}
+        <LatencyGraph />
 
         {/* Table */}
         {loading ? (
